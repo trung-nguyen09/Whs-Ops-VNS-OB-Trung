@@ -1,0 +1,785 @@
+    <!DOCTYPE html>
+    <html lang="vi">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>[VNS] - Gửi mail Linehaul</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+        <style>
+            body { font-family: 'Inter', sans-serif; }
+            .file-drop-area { transition: all 0.3s ease; }
+            .file-drop-area.dragover { background-color: #e0f2fe; border-color: #3b82f6; }
+            .loader { border-top-color: #3498db; animation: spin 1s linear infinite; }
+            @keyframes spin { to { transform: rotate(360deg); } }
+            .modal-overlay { transition: opacity 0.3s ease; }
+            .modal-container { transition: transform 0.3s ease; }
+            .merged-cell { vertical-align: top; }
+            .ellipsis-cell {
+                max-width: 250px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+            .table-sticky-header th {
+                position: sticky;
+                top: 0;
+                background-color: #f9fafb;
+                z-index: 10;
+            }
+            @keyframes float-rotate {
+                0% { transform: rotate(0deg) translateY(0px); }
+                50% { transform: rotate(180deg) translateY(-10px); }
+                100% { transform: rotate(360deg) translateY(0px); }
+            }
+            .animate-float-rotate {
+                animation: float-rotate 4s ease-in-out infinite;
+            }
+            /* Toast for non-blocking notifications */
+            .toast {
+                position: fixed;
+                top: 16px;
+                right: 16px;
+                z-index: 99999;
+                min-width: 220px;
+                max-width: 420px;
+                background: rgba(17,24,39,0.95);
+                color: #fff;
+                padding: 12px 16px;
+                border-radius: 8px;
+                box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+                display: none;
+                align-items: center;
+                gap: 10px;
+            }
+            .toast.show { display: flex; }
+            .toast.success { background: rgba(16,185,129,0.95); color: white; }
+            .toast.warn { background: rgba(234,179,8,0.95); color: #111827; }
+            .toast .msg { flex:1; font-size:14px; }
+            .btn-loading { opacity: .8; transform: scale(.98); }
+        </style>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    </head>
+    <body class="bg-gray-100 text-gray-800">
+        <div class="container mx-auto p-4 sm:p-6 lg:p-8">
+            <header class="mb-8 bg-gradient-to-r from-orange-500 to-orange-400 rounded-2xl shadow-lg p-8">
+                <div class="flex items-start gap-6">
+                    <div class="flex-shrink-0">
+                        <div class="flex items-center justify-center w-20 h-20 bg-white rounded-xl shadow-md animate-float-rotate">
+                            <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" class="w-16 h-16">
+                                <rect width="100" height="100" rx="15" fill="#FF6B35"/>
+                                <rect x="15" y="15" width="70" height="70" rx="12" fill="none" stroke="white" stroke-width="4"/>
+                                <text x="50" y="60" font-size="48" font-weight="900" fill="white" text-anchor="middle" font-family="Arial, sans-serif">S</text>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="flex-1">
+                        <h1 class="text-4xl font-bold text-white">[VNS] - Tools gửi mail Linehaul - Version 2.1</h1>
+                        <p class="text-white text-lg mt-2 font-medium">Tool được built bởi Trung Nguyễn, có gì thắc mắc liên hệ quoctrung.nguyen@shopee.com.</p>
+                    </div>
+                </div>
+            </header>
+            <main>
+                <section id="upload-section" class="bg-white rounded-xl shadow-md p-6 mb-8">
+                    <div id="file-drop-area" class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer">
+                        <input type="file" id="file-input" multiple accept=".xlsx" class="hidden">
+                        <div class="flex flex-col items-center">
+                            <svg class="w-12 h-12 text-gray-400 mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                            </svg>
+                            <p class="font-semibold text-gray-700">Kéo và thả file hoặc <span class="text-blue-500">nhấn để chọn file</span></p>
+                            <p class="text-xs text-gray-500 mt-1">Hỗ trợ nhiều file .xlsx</p>
+                        </div>
+                    </div>
+                    <div id="file-list" class="mt-4 text-sm text-gray-600"></div>
+                    <div id="loader" class="hidden flex justify-center items-center mt-4">
+                        <div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12"></div>
+                        <p class="ml-4 text-gray-600">Đang xử lý, vui lòng chờ...</p>
+                    </div>
+                </section>
+                <section id="scorecard-section" class="hidden mb-8">
+                    <h2 class="text-2xl font-bold mb-4 text-gray-800">Tổng Quan Backlog</h2>
+                    <div id="scorecard-container" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                    </div>
+                </section>
+                <section id="data-section" class="bg-white rounded-xl shadow-md p-6 hidden">
+                    <div class="flex flex-col md:flex-row justify-between md:items-center mb-4">
+                        <h2 class="text-2xl font-bold mb-2 md:mb-0">Details</h2>
+                        <div class="flex space-x-2 flex-wrap gap-2">
+                            <button id="export-btn" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-md transition-colors flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                </svg>
+                                Export to Excel
+                            </button>
+                            <button id="report-summary-btn" class="bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2 px-4 rounded-md transition-colors flex items-center" title="Report Summary">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14M5 12h14" />
+                                </svg>
+                                Report Summary
+                            </button>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                        <div>
+                            <label for="filter-linehaul-trip" class="block text-sm font-medium text-gray-700 mb-1">Filter Line Haul Trip Number</label>
+                            <input type="text" id="filter-linehaul-trip" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" placeholder="Nhập Line Haul Trip Number...">
+                        </div>
+                        <div>
+                            <label for="filter-to-number" class="block text-sm font-medium text-gray-700 mb-1">Filter TO Number</label>
+                            <input type="text" id="filter-to-number" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" placeholder="Nhập TO Number...">
+                        </div>
+                        <div>
+                            <label for="filter-spx-tracking" class="block text-sm font-medium text-gray-700 mb-1">Filter SPX Tracking Number</label>
+                            <input type="text" id="filter-spx-tracking" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" placeholder="Nhập SPX Tracking Number...">
+                        </div>
+                        <div>
+                            <label for="filter-receiver-name" class="block text-sm font-medium text-gray-700 mb-1">Filter Receiver Name</label>
+                            <input type="text" id="filter-receiver-name" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" placeholder="Nhập Receiver Name...">
+                        </div>
+                        <div>
+                            <label for="filter-create-time" class="block text-sm font-medium text-gray-700 mb-1">Filter Complete Time</label>
+                            <input type="date" id="filter-create-time" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">&nbsp;</label>
+                            <button id="reset-filters" class="w-full bg-gray-500 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-md transition-colors">Xoá bộ lọc</button>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full bg-white border border-gray-200">
+                            <thead class="bg-gray-50 table-sticky-header">
+                                <tr>
+                                    <th class="py-3 px-4 border-b text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Line Hual Trip Number</th>
+                                    <th class="py-3 px-4 border-b text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">TO Number</th>
+                                    <th class="py-3 px-4 border-b text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">SPX Tracking Number</th>
+                                    <th class="py-3 px-4 border-b text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Receiver Name</th>
+                                    <th class="py-3 px-4 border-b text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Complete Time</th>
+                                </tr>
+                            </thead>
+                            <tbody id="data-table-body">
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="no-results" class="text-center py-8 text-gray-500 hidden">
+                        <p>Không tìm thấy kết quả phù hợp.</p>
+                    </div>
+                    <div id="pagination-controls" class="flex justify-between items-center mt-6">
+                    </div>
+                </section>
+            </main>
+        </div>
+        <div id="summary-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden modal-overlay z-50">
+            <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-6xl modal-container relative">
+                <button id="close-summary-btn" class="absolute top-2 right-2 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold rounded-full w-8 h-8 flex items-center justify-center">&times;</button>
+                <button id="crop-summary-btn" title="Crop Img" class="absolute top-2 right-12 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-full w-8 h-8 flex items-center justify-center">✂</button>
+                <section id="summary-section">
+                    <h2 class="px-8 text-2xl font-bold mb-4 text-gray-800" id="summary-title">Report Backlog</h2>
+                    <div id="summary-scorecards" class="px-8 mb-4 grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-10 gap-3"></div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full min-w-[1000px] bg-white border border-gray-200 table-fixed" id="summary-table">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="py-3 px-4 border-b text-left text-xs font-semibold text-gray-600 uppercase w-[220px]">CAT</th>
+                                    <th class="py-3 px-4 border-b text-right text-xs font-semibold text-gray-600 uppercase w-[90px]">Total</th>
+                                    <th class="py-3 px-4 border-b text-center text-xs font-semibold text-gray-600 uppercase w-[90px]">Created</th>
+                                    <th class="py-3 px-4 border-b text-center text-xs font-semibold text-gray-600 uppercase w-[90px]">Pending Pick</th>
+                                    <th class="py-3 px-4 border-b text-center text-xs font-semibold text-gray-600 uppercase w-[90px]">Picking</th>
+                                    <th class="py-3 px-4 border-b text-center text-xs font-semibold text-gray-600 uppercase w-[90px]">Picked</th>
+                                    <th class="py-3 px-4 border-b text-center text-xs font-semibold text-gray-600 uppercase w-[90px]">Pick Fail</th>
+                                    <th class="py-3 px-4 border-b text-center text-xs font-semibold text-gray-600 uppercase w-[90px]">Checking</th>
+                                    <th class="py-3 px-4 border-b text-center text-xs font-semibold text-gray-600 uppercase w-[90px]">Checked</th>
+                                    <th class="py-3 px-4 border-b text-center text-xs font-semibold text-gray-600 uppercase w-[90px]">Packing</th>
+                                    <th class="py-3 px-4 border-b text-center text-xs font-semibold text-gray-600 uppercase w-[90px]">Packed</th>
+                                </tr>
+                            </thead>
+                            <tbody id="summary-tbody"></tbody>
+                            <tfoot>
+                                <tr class="bg-orange-200 font-bold">
+                                    <td class="py-3 px-4 border-t text-left">Total</td>
+                                    <td class="py-3 px-4 border-t text-right" id="total-backlog"></td>
+                                    <td class="py-3 px-4 border-t text-right" id="total-created"></td>
+                                    <td class="py-3 px-4 border-t text-right" id="total-pending-pick"></td>
+                                    <td class="py-3 px-4 border-t text-right" id="total-picking"></td>
+                                    <td class="py-3 px-4 border-t text-right" id="total-picked"></td>
+                                    <td class="py-3 px-4 border-t text-right" id="total-pickfail"></td>
+                                    <td class="py-3 px-4 border-t text-right" id="total-checking"></td>
+                                    <td class="py-3 px-4 border-t text-right" id="total-checked"></td>
+                                    <td class="py-3 px-4 border-t text-right" id="total-packing"></td>
+                                    <td class="py-3 px-4 border-t text-right" id="total-packed"></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </section>
+            </div>
+        </div>
+        <div id="cropper-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden modal-overlay z-60">
+            <div class="bg-white rounded-lg shadow-xl p-4 w-full max-w-4xl modal-container relative">
+                <button id="close-cropper-btn" class="absolute top-2 right-2 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold rounded-full w-8 h-8 flex items-center justify-center">&times;</button>
+                <h3 class="text-lg font-bold mb-2">Crop Summary Image</h3>
+                <div class="overflow-auto" style="max-height:70vh">
+                    <img id="cropper-image" src="" alt="Crop preview" style="max-width:100%; display:block; margin:0 auto;" />
+                </div>
+                <div class="mt-4 flex justify-end space-x-2">
+                    <button id="cancel-crop-btn" class="bg-gray-500 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-md">Hủy</button>
+                    <button id="download-crop-btn" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-md">Tải ảnh crop</button>
+                </div>
+            </div>
+        </div>
+        <div id="message-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden modal-overlay z-50">
+            <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm modal-container relative">
+                <button id="close-message-btn" class="absolute top-2 right-2 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold rounded-full w-8 h-8 flex items-center justify-center">&times;</button>
+                <h3 id="message-title" class="text-lg font-bold mb-2"></h3>
+                <p id="message-body" class="text-sm text-gray-600"></p>
+                <div class="mt-4 flex justify-end">
+                    <button onclick="closeMessageModal()" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md">Đóng</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Non-blocking toast -->
+        <div id="copy-toast" class="toast" role="status" aria-live="polite">
+            <div class="msg" id="copy-toast-msg">Đã copy báo cáo vào clipboard!</div>
+            <button id="copy-toast-close" class="bg-white bg-opacity-20 rounded-full w-8 h-8 flex items-center justify-center">✕</button>
+        </div>
+
+        <!-- Report Summary Modal -->
+        <div id="report-summary-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden modal-overlay z-50">
+            <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-4xl modal-container relative">
+                <button id="close-report-summary-btn" class="absolute top-2 right-2 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold rounded-full w-8 h-8 flex items-center justify-center">&times;</button>
+                <button id="copy-summary-btn" title="Copy summary as image" class="absolute top-2 right-12 bg-green-500 hover:bg-green-600 text-white font-semibold rounded-full w-8 h-8 flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                    </svg>
+                </button>
+                <h2 class="text-2xl font-bold mb-4">Report Backlog HUB/SOC</h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full bg-white border border-gray-200" id="report-summary-table">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="py-3 px-4 text-left text-xs font-bold text-gray-600 uppercase">Receiver Name</th>
+                                <th class="py-3 px-4 text-right text-xs font-bold text-gray-600 uppercase"># Order</th>
+                                <th class="py-3 px-4 text-right text-xs font-bold text-gray-600 uppercase">% Order</th>
+                            </tr>
+                        </thead>
+                        <tbody id="report-summary-tbody"></tbody>
+                        <tfoot>
+                            <tr class="bg-orange-200 font-bold">
+                                <td class="py-3 px-4">Total</td>
+                                <td class="py-3 px-4 text-right" id="report-summary-total-count"></td>
+                                <td class="py-3 px-4 text-right" id="report-summary-total-pct"></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+        <script>
+            const fileDropArea = document.getElementById('file-drop-area');
+            const fileInput = document.getElementById('file-input');
+            const fileList = document.getElementById('file-list');
+            const loader = document.getElementById('loader');
+            const scorecardSection = document.getElementById('scorecard-section');
+            const scorecardContainer = document.getElementById('scorecard-container');
+            const dataSection = document.getElementById('data-section');
+            const tableBody = document.getElementById('data-table-body');
+            const paginationControls = document.getElementById('pagination-controls');
+            const noResultsDiv = document.getElementById('no-results');
+            const filterLineHaulTrip = document.getElementById('filter-linehaul-trip');
+            const filterTONumber = document.getElementById('filter-to-number');
+            const filterSPXTracking = document.getElementById('filter-spx-tracking');
+            const filterReceiverName = document.getElementById('filter-receiver-name');
+            const filterCreateTime = document.getElementById('filter-create-time');
+            const resetFiltersBtn = document.getElementById('reset-filters');
+            const exportBtn = document.getElementById('export-btn');
+
+            const messageModal = document.getElementById('message-modal');
+            const messageTitleEl = document.getElementById('message-title');
+            const messageBodyEl = document.getElementById('message-body');
+            const closeMessageBtn = document.getElementById('close-message-btn');
+
+            let allData = [];
+            let processedData = [];
+            let filteredViewData = [];
+            let currentPage = 1;
+            const ROWS_PER_PAGE = 13;
+
+            function showMessage(title, message) {
+                messageTitleEl.textContent = title;
+                messageBodyEl.textContent = message;
+                messageModal.classList.remove('hidden');
+            }            function closeMessageModal() {
+                messageModal.classList.add('hidden');
+            }
+
+            closeMessageBtn.addEventListener('click', closeMessageModal);
+            
+            function preventDefaults(e) { e.preventDefault(); e.stopPropagation(); }
+
+            fileDropArea.addEventListener('click', () => fileInput.click());
+            fileInput.addEventListener('change', handleFileSelect);
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(e => fileDropArea.addEventListener(e, preventDefaults, false));
+            ['dragenter', 'dragover'].forEach(e => fileDropArea.addEventListener(e, () => fileDropArea.classList.add('dragover'), false));
+            ['dragleave', 'drop'].forEach(e => fileDropArea.addEventListener(e, () => fileDropArea.classList.remove('dragover'), false));
+            fileDropArea.addEventListener('drop', handleDrop, false);
+            filterLineHaulTrip.addEventListener('input', applyFilters);
+            filterTONumber.addEventListener('input', applyFilters);
+            filterSPXTracking.addEventListener('input', applyFilters);
+            filterReceiverName.addEventListener('input', applyFilters);
+            filterCreateTime.addEventListener('change', applyFilters);
+            resetFiltersBtn.addEventListener('click', resetFilters);
+            exportBtn.addEventListener('click', exportToExcel);
+            
+            function handleDrop(e) {
+                const files = e.dataTransfer.files;
+                processFiles(files);
+            }
+
+            function handleFileSelect(e) {
+                const files = e.target.files;
+                processFiles(files);
+            }
+
+            async function processFiles(files) {
+                fileList.innerHTML = '';
+                scorecardSection.classList.add('hidden');
+                dataSection.classList.add('hidden');
+                loader.classList.remove('hidden');
+                allData = [];
+
+                if (files.length === 0) {
+                    loader.classList.add('hidden');
+                    showMessage("Lỗi", "Vui lòng chọn ít nhất một file Excel.");
+                    return;
+                }
+                
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i];
+                    const listItem = document.createElement('div');
+                    listItem.textContent = `Đang xử lý: ${file.name}`;
+                    fileList.appendChild(listItem);
+                    try {
+                        const data = await readExcelFile(file);
+                        const processedFile = processExcelData(data);
+                        allData.push(...processedFile);
+                        listItem.textContent = `Đã xử lý: ${file.name}`;
+                    } catch (error) {
+                        console.error(`Lỗi khi xử lý file ${file.name}:`, error);
+                        listItem.textContent = `Lỗi: ${file.name} - ${error.message}`;
+                    }
+                }
+                processedData = allData;
+                loader.classList.add('hidden');
+                
+                if (processedData.length > 0) {
+                    applyFilters();
+                    dataSection.classList.remove('hidden');
+                } else {
+                    showMessage("Cảnh báo", "Không tìm thấy dữ liệu hợp lệ nào trong các file đã tải lên.");
+                }
+            }
+
+            function readExcelFile(file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        try {
+                            const data = new Uint8Array(e.target.result);
+                            const workbook = XLSX.read(data, { type: 'array' });
+                            const sheetName = workbook.SheetNames[0];
+                            const worksheet = workbook.Sheets[sheetName];
+                            const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                            resolve(json);
+                        } catch (error) {
+                            reject(new Error("Không thể đọc file. Vui lòng đảm bảo đây là file Excel hợp lệ."));
+                        }
+                    };
+                    reader.onerror = (e) => reject(e);
+                    reader.readAsArrayBuffer(file);
+                });
+            }
+
+            function processExcelData(data) {
+                const result = [];
+                const headerRow = data[0];
+                if (!headerRow) return result;
+
+                const lineHaulTripIndex = headerRow.indexOf('Line Hual Trip Number');
+                const toNumberIndex = headerRow.indexOf('TO Number');
+                const spxTrackingIndex = headerRow.indexOf('SPX Tracking Number');
+                const receiverNameIndex = headerRow.indexOf('Receiver Name');
+                const createTimeIndex = headerRow.indexOf('Complete Time');
+
+                if (lineHaulTripIndex === -1 || toNumberIndex === -1 || spxTrackingIndex === -1 || receiverNameIndex === -1 || createTimeIndex === -1) {
+                    showMessage("Lỗi dữ liệu", "File thiếu một hoặc nhiều cột bắt buộc: 'Line Hual Trip Number', 'TO Number', 'SPX Tracking Number', 'Receiver Name', 'Complete Time'.");
+                    return [];
+                }
+                
+                for (let i = 1; i < data.length; i++) {
+                    const row = data[i];
+                    if (row && row[toNumberIndex]) {
+                        const lineHaulTrip = row[lineHaulTripIndex] || '';
+                        const toNumber = row[toNumberIndex];
+                        const spxTracking = row[spxTrackingIndex] || '';
+                        const receiverName = row[receiverNameIndex] || '';
+                        
+                        const excelDate = row[createTimeIndex];
+                        let createdTime = '';
+                        if (typeof excelDate === 'number' && excelDate > 1) {
+                            const date = new Date(Math.round((excelDate - 25569) * 86400 * 1000));
+                            createdTime = date.toLocaleDateString('vi-VN');
+                        } else {
+                            createdTime = excelDate || '';
+                        }
+                        
+                        result.push({
+                            'Line Hual Trip Number': lineHaulTrip,
+                            'TO Number': toNumber,
+                            'SPX Tracking Number': spxTracking,
+                            'Receiver Name': receiverName,
+                            'Complete Time': createdTime
+                        });
+                    }
+                }
+                return result;
+            }
+
+            function applyFilters() {
+                currentPage = 1;
+                const lineHaulTripFilter = filterLineHaulTrip.value.toLowerCase();
+                const toNumberFilter = filterTONumber.value.toLowerCase();
+                const spxTrackingFilter = filterSPXTracking.value.toLowerCase(); 
+                const receiverNameFilter = filterReceiverName.value.toLowerCase();
+                const createTimeFilter = filterCreateTime.value;
+
+                filteredViewData = processedData.filter(item => {
+                    const matchesLineHaulTrip = !lineHaulTripFilter || String(item['Line Hual Trip Number'] || '').toLowerCase().includes(lineHaulTripFilter);
+                    const matchesToNumber = !toNumberFilter || String(item['TO Number'] || '').toLowerCase().includes(toNumberFilter);
+                    const matchesSPXTracking = !spxTrackingFilter || String(item['SPX Tracking Number'] || '').toLowerCase().includes(spxTrackingFilter);
+                    const matchesReceiverName = !receiverNameFilter || String(item['Receiver Name'] || '').toLowerCase().includes(receiverNameFilter);
+                    
+                    let matchesCreateTime = true;
+                    if (createTimeFilter && item['Complete Time']) {
+                        const [day, month, year] = item['Complete Time'].split('/');
+                        const itemDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+                        matchesCreateTime = itemDate === createTimeFilter;
+                    }
+
+                    return matchesLineHaulTrip && matchesToNumber && matchesSPXTracking && matchesReceiverName && matchesCreateTime;
+                });
+                
+                renderTable(filteredViewData, currentPage);
+                renderPagination(filteredViewData.length);
+            }
+
+            function resetFilters() {
+                filterLineHaulTrip.value = '';
+                filterTONumber.value = '';
+                filterSPXTracking.value = '';
+                filterReceiverName.value = '';
+                filterCreateTime.value = '';
+                applyFilters();
+            }
+
+
+            function renderTable(data, page) {
+                tableBody.innerHTML = '';
+                const start = (page - 1) * ROWS_PER_PAGE;
+                const end = start + ROWS_PER_PAGE;
+                const pageData = data.slice(start, end);
+
+                if (pageData.length === 0) {
+                    noResultsDiv.classList.remove('hidden');
+                } else {
+                    noResultsDiv.classList.add('hidden');
+                    pageData.forEach(item => {
+                        const row = document.createElement('tr');
+                        row.className = 'border-b last:border-b-0 hover:bg-gray-50 transition-colors';
+                        row.innerHTML = `
+                            <td class="py-3 px-4 text-sm text-gray-700 ellipsis-cell" title="${item['Line Hual Trip Number']}">${item['Line Hual Trip Number']}</td>
+                            <td class="py-3 px-4 text-sm text-gray-700 ellipsis-cell" title="${item['TO Number']}">${item['TO Number']}</td>
+                            <td class="py-3 px-4 text-sm text-gray-700 ellipsis-cell" title="${item['SPX Tracking Number']}">${item['SPX Tracking Number']}</td>
+                            <td class="py-3 px-4 text-sm text-gray-700 ellipsis-cell" title="${item['Receiver Name']}">${item['Receiver Name']}</td>
+                            <td class="py-3 px-4 text-sm text-gray-700 ellipsis-cell" title="${item['Complete Time']}">${item['Complete Time']}</td>
+                        `;
+                        tableBody.appendChild(row);
+                    });
+                }
+            }
+
+            function renderPagination(totalRows) {
+                paginationControls.innerHTML = '';
+                const totalPages = Math.ceil(totalRows / ROWS_PER_PAGE);
+
+                if (totalPages > 1) {
+                    const prevBtn = document.createElement('button');
+                    prevBtn.textContent = 'Trước';
+                    prevBtn.className = `py-2 px-4 rounded-md transition-colors ${currentPage === 1 ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600 text-white'}`;
+                    prevBtn.disabled = currentPage === 1;
+                    prevBtn.addEventListener('click', () => {
+                        currentPage--;
+                        renderTable(filteredViewData, currentPage);
+                        renderPagination(totalRows);
+                    });
+
+                    const nextBtn = document.createElement('button');
+                    nextBtn.textContent = 'Sau';
+                    nextBtn.className = `py-2 px-4 rounded-md transition-colors ${currentPage === totalPages ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600 text-white'}`;
+                    nextBtn.disabled = currentPage === totalPages;
+                    nextBtn.addEventListener('click', () => {
+                        currentPage++;
+                        renderTable(filteredViewData, currentPage);
+                        renderPagination(totalRows);
+                    });
+
+                    const pageInfo = document.createElement('span');
+                    pageInfo.className = 'text-sm text-gray-600';
+                    pageInfo.textContent = `Trang ${currentPage} của ${totalPages} (Tổng: ${totalRows} dòng)`;
+
+                    // Nhảy tới trang
+                    const jumpContainer = document.createElement('div');
+                    jumpContainer.className = 'flex items-center gap-2';
+                    
+                    const jumpLabel = document.createElement('label');
+                    jumpLabel.className = 'text-sm text-gray-600';
+                    jumpLabel.textContent = 'Trang:';
+                    
+                    const jumpInput = document.createElement('input');
+                    jumpInput.type = 'number';
+                    jumpInput.min = '1';
+                    jumpInput.max = totalPages.toString();
+                    jumpInput.value = currentPage.toString();
+                    jumpInput.className = 'w-16 p-1 border border-gray-300 rounded-md text-sm';
+                    
+                    const jumpBtn = document.createElement('button');
+                    jumpBtn.textContent = 'Đi';
+                    jumpBtn.className = 'py-1 px-3 bg-green-500 hover:bg-green-600 text-white text-sm rounded-md transition-colors';
+                    jumpBtn.addEventListener('click', () => {
+                        const pageNum = parseInt(jumpInput.value);
+                        if (pageNum >= 1 && pageNum <= totalPages) {
+                            currentPage = pageNum;
+                            renderTable(filteredViewData, currentPage);
+                            renderPagination(totalRows);
+                        } else {
+                            showMessage('Lỗi', `Vui lòng nhập số trang từ 1 đến ${totalPages}`);
+                        }
+                    });
+                    
+                    jumpInput.addEventListener('keypress', (e) => {
+                        if (e.key === 'Enter') {
+                            jumpBtn.click();
+                        }
+                    });
+                    
+                    jumpContainer.appendChild(jumpLabel);
+                    jumpContainer.appendChild(jumpInput);
+                    jumpContainer.appendChild(jumpBtn);
+
+                    paginationControls.appendChild(prevBtn);
+                    paginationControls.appendChild(pageInfo);
+                    paginationControls.appendChild(jumpContainer);
+                    paginationControls.appendChild(nextBtn);
+                } else if (totalRows > 0) {
+                    const pageInfo = document.createElement('span');
+                    pageInfo.className = 'text-sm text-gray-600';
+                    pageInfo.textContent = `Hiển thị ${totalRows} dòng`;
+                    paginationControls.appendChild(pageInfo);
+                }
+            }
+
+            function exportToExcel() {
+                // Group data by Receiver Name
+                const groupedByReceiver = {};
+                
+                filteredViewData.forEach(item => {
+                    const receiverName = item['Receiver Name'] || 'Unknown';
+                    if (!groupedByReceiver[receiverName]) {
+                        groupedByReceiver[receiverName] = [];
+                    }
+                    groupedByReceiver[receiverName].push(item);
+                });
+                
+                // If only one receiver, export as single file with count in filename
+                const receiverNames = Object.keys(groupedByReceiver);
+                
+                if (receiverNames.length === 1) {
+                    const receiverName = receiverNames[0];
+                    const count = groupedByReceiver[receiverName].length;
+                    
+                    const wb = XLSX.utils.book_new();
+                    const exportData = groupedByReceiver[receiverName].map(item => ({
+                        'Line Hual Trip Number': item['Line Hual Trip Number'],
+                        'TO Number': item['TO Number'],
+                        'SPX Tracking Number': item['SPX Tracking Number'],
+                        'Receiver Name': item['Receiver Name'],
+                        'Complete Time': item['Complete Time']
+                    }));
+                    
+                    const ws = XLSX.utils.json_to_sheet(exportData);
+                    XLSX.utils.book_append_sheet(wb, ws, "TO Order");
+                    
+                    // Tên file: {Receiver Name}_{Count}_TO Order.xlsx
+                    const filename = `${receiverName}_${count}_TO Order.xlsx`;
+                    XLSX.writeFile(wb, filename);
+                } else {
+                    // If multiple receivers, export each to separate sheet with counts
+                    const wb = XLSX.utils.book_new();
+                    
+                    // Summary sheet with counts
+                    const summaryData = receiverNames.map(name => ({
+                        'Receiver Name': name,
+                        'Count': groupedByReceiver[name].length
+                    }));
+                    
+                    const wsSummary = XLSX.utils.json_to_sheet(summaryData);
+                    XLSX.utils.book_append_sheet(wb, wsSummary, "Tổng Hợp");
+                    
+                    // Detail sheets for each receiver
+                    receiverNames.forEach((receiverName, index) => {
+                        const exportData = groupedByReceiver[receiverName].map(item => ({
+                            'Line Hual Trip Number': item['Line Hual Trip Number'],
+                            'TO Number': item['TO Number'],
+                            'SPX Tracking Number': item['SPX Tracking Number'],
+                            'Receiver Name': item['Receiver Name'],
+                            'Complete Time': item['Complete Time']
+                        }));
+                        
+                        const ws = XLSX.utils.json_to_sheet(exportData);
+                        const sheetName = receiverName.substring(0, 31); // Excel max sheet name = 31 chars
+                        XLSX.utils.book_append_sheet(wb, ws, sheetName);
+                    });
+                    
+                    XLSX.writeFile(wb, "Backlog_Report_ByReceiver.xlsx");
+                }
+            }
+            
+            // === Report Summary Button & Logic ===
+
+            const reportSummaryBtn = document.getElementById('report-summary-btn');
+            const reportSummaryModal = document.getElementById('report-summary-modal');
+            const closeReportSummaryBtn = document.getElementById('close-report-summary-btn');
+            const reportSummaryTbody = document.getElementById('report-summary-tbody');
+            const reportSummaryTotalCountEl = document.getElementById('report-summary-total-count');
+            const reportSummaryTotalPctEl = document.getElementById('report-summary-total-pct');
+
+            function escapeHtml(text) {
+                if (text === null || text === undefined) return '';
+                return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+            }
+
+            function openReportSummary() {
+                const dataForSummary = (filteredViewData && filteredViewData.length > 0) ? filteredViewData : processedData;
+                if (!dataForSummary || dataForSummary.length === 0) {
+                    showMessage('Thông báo', 'Không có dữ liệu để hiển thị summary.');
+                    return;
+                }
+
+                const grouped = {};
+                dataForSummary.forEach(item => {
+                    const name = (item['Receiver Name'] || 'Unknown').toString();
+                    grouped[name] = (grouped[name] || 0) + 1;
+                });
+
+                const total = dataForSummary.length;
+                reportSummaryTbody.innerHTML = '';
+                let sumCount = 0;
+
+                Object.keys(grouped).sort().forEach(name => {
+                    const count = grouped[name];
+                    const pct = total > 0 ? (count / total * 100) : 0;
+                    sumCount += count;
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td class="py-2 px-4 text-sm text-gray-700">${escapeHtml(name)}</td>
+                        <td class="py-2 px-4 text-sm text-gray-700 text-right">${count}</td>
+                        <td class="py-2 px-4 text-sm text-gray-700 text-right">${pct.toFixed(2)}%</td>
+                    `;
+                    reportSummaryTbody.appendChild(tr);
+                });
+
+                reportSummaryTotalCountEl.textContent = sumCount;
+                reportSummaryTotalPctEl.textContent = total > 0 ? (100).toFixed(2) + '%' : '0.00%';
+
+                reportSummaryModal.classList.remove('hidden');
+            }
+
+            if (reportSummaryBtn) reportSummaryBtn.addEventListener('click', openReportSummary);
+            if (closeReportSummaryBtn) closeReportSummaryBtn.addEventListener('click', () => reportSummaryModal.classList.add('hidden'));
+            if (reportSummaryModal) reportSummaryModal.addEventListener('click', (e) => { if (e.target === reportSummaryModal) reportSummaryModal.classList.add('hidden'); });
+
+            // === END Report Summary Button & Logic ===
+
+            // Copy summary table as image to clipboard (uses html2canvas) - non-blocking with toast
+            const copySummaryBtnEl = document.getElementById('copy-summary-btn');
+            const copyToast = document.getElementById('copy-toast');
+            const copyToastMsg = document.getElementById('copy-toast-msg');
+            const copyToastClose = document.getElementById('copy-toast-close');
+
+            function showToast(message, type = 'success', timeout = 3000) {
+                if (!copyToast) return;
+                copyToast.classList.remove('success', 'warn');
+                copyToast.classList.add(type === 'success' ? 'success' : 'warn');
+                copyToastMsg.textContent = message;
+                copyToast.classList.add('show');
+                if (timeout > 0) {
+                    setTimeout(() => { copyToast.classList.remove('show'); }, timeout);
+                }
+            }
+
+            if (copyToastClose) copyToastClose.addEventListener('click', () => copyToast.classList.remove('show'));
+
+            function setCopyBtnLoading(on) {
+                if (!copySummaryBtnEl) return;
+                if (on) {
+                    copySummaryBtnEl.classList.add('btn-loading');
+                    copySummaryBtnEl.dataset.orig = copySummaryBtnEl.innerHTML;
+                    copySummaryBtnEl.innerHTML = '<svg class="animate-spin h-4 w-4 mr-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg>';
+                    copySummaryBtnEl.disabled = true;
+                } else {
+                    copySummaryBtnEl.classList.remove('btn-loading');
+                    if (copySummaryBtnEl.dataset.orig) copySummaryBtnEl.innerHTML = copySummaryBtnEl.dataset.orig;
+                    copySummaryBtnEl.disabled = false;
+                }
+            }
+
+            if (copySummaryBtnEl) {
+                copySummaryBtnEl.addEventListener('click', () => {
+                    const tableEl = document.getElementById('report-summary-table');
+                    if (!tableEl) { showToast('Không tìm thấy bảng summary.', 'warn'); return; }
+
+                    // show loading state first so UI updates before heavy render
+                    setCopyBtnLoading(true);
+                    // allow DOM to update
+                    setTimeout(async () => {
+                        try {
+                            const canvas = await html2canvas(tableEl, { useCORS: true, backgroundColor: null, scale: 2 });
+                            canvas.toBlob(async (blob) => {
+                                setCopyBtnLoading(false);
+                                if (!blob) { showToast('Không thể tạo ảnh từ bảng.', 'warn'); return; }
+                                try {
+                                    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+                                    showToast('Đã copy bảng report vào clipboard!', 'success');
+                                } catch (err) {
+                                    // fallback: open image in new tab
+                                    const url = URL.createObjectURL(blob);
+                                    window.open(url, '_blank');
+                                    showToast('Trình duyệt không hỗ trợ copy hình tự động. Ảnh mở ở tab mới.', 'warn');
+                                }
+                            }, 'image/png');
+                        } catch (error) {
+                            setCopyBtnLoading(false);
+                            console.error('Copy summary image error', error);
+                            showToast('Không thể copy hình: ' + (error && error.message ? error.message : ''), 'warn');
+                        }
+                    }, 60);
+                });
+            }
+        </script>
+    </body>
+    </html>
