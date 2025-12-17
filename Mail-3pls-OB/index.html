@@ -328,7 +328,7 @@
 
         let currentPage = 1;
         const ROWS_PER_PAGE = 15;
-        const SCORECARD_3PLS = ['Total Orders', 'Ahamove', 'AhamoveCK', 'SPX Express','SPX Bulky CK','BEST Express', 'Giao Hàng Nhanh'];
+        const SCORECARD_3PLS = ['Total Orders', 'Ahamove Hỏa Tốc', 'AhamoveCK', 'SPX Express','SPX Bulky CK','BEST Express', 'Giao Hàng Nhanh'];
         fileDropArea.addEventListener('click', () => fileInput.click());
         fileInput.addEventListener('change', handleFileSelect);
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(e => fileDropArea.addEventListener(e, preventDefaults, false));
@@ -447,7 +447,7 @@
         function rename3PL(originalName, shippedBy) {
             const nameMap = {
                 'SPX - Hàng Cồng Kềnh': 'SPX Bulky CK',
-                 'Ahamove - Trong Ngày': 'Ahamove',
+                 'Ahamove - Trong Ngày': 'Ahamove Hỏa Tốc',
                 'Tủ Nhận Hàng': 'SPX Express'};
             // Đặc biệt cho GHN - Hàng Cồng Kềnh
             if (originalName === 'GHN - Hàng Cồng Kềnh') {
