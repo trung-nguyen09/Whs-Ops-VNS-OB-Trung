@@ -695,7 +695,14 @@
                             const code = row[orderCodeColumnIndex];
 
                             if (code && String(code).trim() !== "") {
-                                fileCodes.add(String(code).trim().toUpperCase());
+                                let normalizedCode = String(code).trim().toUpperCase();
+                                
+                                // Chuẩn hóa mã Ahamove: nếu 21 ký tự, lấy 14 ký tự cuối
+                                if (normalizedCode.length === 21 && (normalizedCode.startsWith('SHOPEE_') || normalizedCode.includes('_'))) {
+                                    normalizedCode = normalizedCode.substring(normalizedCode.length - 14);
+                                }
+                                
+                                fileCodes.add(normalizedCode);
                             }
                         }
                         resolve({ name: file.name, count: fileCodes.size, codes: fileCodes });
@@ -793,6 +800,22 @@
             storageInfoElement.innerHTML = htmlContent;
         }
 
+        function getNormalizedOrderCode(orderCode, selected3PL) {
+            // Hàm này trích xuất 14 ký tự chính để so sánh trùng lặp
+            if (selected3PL === 'Ahamove') {
+                // Ahamove: lấy 14 ký tự cuối (mã chính)
+                // 21 ký tự: SHOPEE_251217JMC73FBP -> lấy 251217JMC73FBP
+                // 14 ký tự: 251217JMC73FBP -> lấy 251217JMC73FBP
+                if (orderCode.length === 21) {
+                    return orderCode.substring(7); // Bỏ 7 ký tự đầu (SHOPEE_)
+                } else if (orderCode.length === 14) {
+                    return orderCode; // Đã là 14 ký tự
+                }
+            }
+            // Các 3PL khác: so sánh chính xác
+            return orderCode;
+        }
+
         function addOrder() {
             var stationIdInput = document.getElementById("station");
             var taskIdInput = document.getElementById("taskId");
@@ -838,8 +861,11 @@
                 return;
             }
 
+            // Lấy mã chuẩn hóa để so sánh trùng lặp
+            var normalizedCode = getNormalizedOrderCode(orderCode, selected3PL);
+
             // 3. KIỂM TRA TRÙNG LẶP VỚI FILE STORAGE 
-            if (storageOrderCodes.size > 0 && storageOrderCodes.has(orderCode)) {
+            if (storageOrderCodes.size > 0 && storageOrderCodes.has(normalizedCode)) {
                 showCustomAlert(`❌ Mã đơn hàng **${orderCode}** ĐÃ TỒN TẠI trong **${storageOrderCodes.size}** mã Storage đã tải.`);
                 playStorageTrungSound(); 
                 focusAndSelectOrderCode();
@@ -851,8 +877,9 @@
             var rows = table.getElementsByTagName('tr');
             for (var i = 0; i < rows.length; i++) {
                 var existingOrderCode = rows[i].getElementsByTagName('td')[4].innerText;
-                if (existingOrderCode === orderCode) {
-                    showCustomAlert(`Mã đơn hàng **${orderCode}** đã tồn tại trong danh sách đang nhập.`);
+                var existingNormalizedCode = getNormalizedOrderCode(existingOrderCode, selected3PL);
+                if (existingNormalizedCode === normalizedCode) {
+                    showCustomAlert(`Mã đơn hàng **${orderCode}** đã tồn tại trong danh sách đang nhập (mã chính: **${normalizedCode}**).`);
                     playtrungSound();
                     focusAndSelectOrderCode();
                     return;
@@ -1077,12 +1104,30 @@
                     }
                 }
 
-        function showCustomAlert(message) {
+        let alertTimeout = null;
+
+        function showCustomAlert(message, autoCloseDelay = 2000) {
+            // Clear existing timeout nếu có
+            if (alertTimeout) {
+                clearTimeout(alertTimeout);
+            }
+            
             document.getElementById("customAlertMessage").innerHTML = message;
             document.getElementById("customAlert").style.display = "block";
+            
+            // Tự động đóng modal sau autoCloseDelay (mặc định 5 giây)
+            alertTimeout = setTimeout(() => {
+                closeCustomAlert();
+            }, autoCloseDelay);
         }
 
         function closeCustomAlert() {
+            // Clear timeout nếu modal được đóng thủ công
+            if (alertTimeout) {
+                clearTimeout(alertTimeout);
+                alertTimeout = null;
+            }
+            
             document.getElementById("customAlert").style.display = "none";
             focusAndSelectOrderCode();
         }
