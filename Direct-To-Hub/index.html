@@ -38,7 +38,7 @@
         <div class="bg-white p-6 rounded shadow-sm w-full max-w-3xl border border-gray-200">
             
             <div class="mb-6">
-                <input type="text" id="searchInput" placeholder="Nhập LM Tracking" 
+                <input type="text" id="searchInput" placeholder="Nhập WMS Order No" 
                        class="w-full border border-gray-300 rounded p-3 focus:outline-none focus:border-shopee-orange text-gray-700">
                 <button onclick="checkDevice()" 
                         class="btn-gradient text-white font-bold py-2 px-6 rounded mt-4 shadow-sm hover:opacity-90 transition-opacity uppercase text-sm">
@@ -127,14 +127,14 @@
 
             if (!inputVal) { alert("Vui lòng nhập LM Tracking No!"); inputEl.focus(); return; }
 
-            // Tìm kiếm (LM Tracking No)
+            // Tìm kiếm (WMS Order No)
             const foundData = database.find(item => 
-                String(item["LM Tracking No"]).toLowerCase().trim() === inputVal.toLowerCase()
+                String(item["WMS Order No"]).toLowerCase().trim() === inputVal.toLowerCase()
             );
 
             if (foundData) {
                 // Hiển thị dữ liệu
-                document.getElementById('res_wms').innerText = foundData["LM Tracking No"];
+                document.getElementById('res_wms').innerText = foundData["WMS Order No"];
                 document.getElementById('res_createTime').innerText = formatDate(foundData["Create Time"]);
                 document.getElementById('res_status').innerText = foundData["Status"];
                 document.getElementById('res_hub').innerText = foundData["Hub"];
