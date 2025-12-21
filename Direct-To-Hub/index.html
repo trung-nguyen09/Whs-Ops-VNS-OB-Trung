@@ -23,7 +23,7 @@
     <audio id="sound_error" src="error.mp3" preload="auto"></audio>
     
     <audio id="sound_5009" src="5009.mp3" preload="auto"></audio>
-    <audio id="sound_5174" src="5174.mp3" preload="auto"></audio> 
+    <audio id="sound_5174" src="5174.mp3" preload="auto"></audio>
     <audio id="sound_5001" src="5001.mp3" preload="auto"></audio>
     <audio id="sound_5007" src="5007.mp3" preload="auto"></audio>
     <audio id="sound_5194" src="5194.mp3" preload="auto"></audio>
@@ -90,7 +90,7 @@
     </main>
 
     <footer class="text-center py-4 text-gray-500" style="font-size: 14px;">
-        <p>Device Check - VN. Tools. Bulid by quoctrung.nguyen@shopee.com</p>
+        <p>Device Check - VN. Tools. Built by quoctrung.nguyen@shopee.com</p>
     </footer>
 
     <script>
@@ -158,43 +158,50 @@
             inputEl.focus();    
         }
 
-        // --- HÀM XỬ LÝ ÂM THANH (Logic chính xác) ---
+        // --- HÀM XỬ LÝ ÂM THANH CHUẨN 100% THEO YÊU CẦU ---
         function playHubSound(hubName) {
             if (!hubName) { playSound("sound_success"); return; }
             
-            // Chuyển hết về chữ thường để so sánh cho chuẩn
             let name = hubName.toString().toLowerCase().trim();
-            console.log("Đang kiểm tra Hub:", name); // Xem log nếu cần debug
+            console.log("Checking Sound for:", name);
 
-            // 1. Phường 12 (Check trước vì nó chứa chữ 'Phuong 12')
-            if (name.includes("phuong 12") || name.includes("phường 12")) {
+            // --- NHÓM 1: CÁC HUB CON (Kiểm tra trước) ---
+            
+            // 2. Binh Thanh/VTB Hub -> 5174
+            if (name.includes("vtb")) {
                 playSound("sound_5174");
-            } 
-            // 2. Bui Van Ba -> 5009
-            else if (name.includes("bui van ba")) {
-                playSound("sound_5009");
-            } 
-            // 3. VTB -> 5001
-            else if (name.includes("vtb")) {
-                playSound("sound_5001");
             }
-            // 4. Dao Tri -> 5195
+            // 5. Binh Thanh/Phuong 12 Hub -> 5194
+            else if (name.includes("phuong 12")) {
+                playSound("sound_5194");
+            }
+            // 6. D7/Bui Van Ba Hub -> 142
+            else if (name.includes("bui van ba")) {
+                playSound("sound_142");
+            }
+            // 7. D7/Dao Tri Hub -> 5195
             else if (name.includes("dao tri")) {
                 playSound("sound_5195");
             }
-            // 5. D4 Hub -> 5194
+            
+            // --- NHÓM 2: CÁC HUB CÒN LẠI (Kiểm tra sau) ---
+            
+            // 3. D4 Hub -> 5001
             else if (name.includes("d4")) {
-                playSound("sound_5194");
+                playSound("sound_5001");
             }
-            // 6. D7 Hub (Check sau các hub con của D7)
+            // 4. D7 Hub -> 5007
+            // (Chỉ check D7 khi đã loại trừ Bui Van Ba và Dao Tri ở trên)
             else if (name.includes("d7")) {
                 playSound("sound_5007");
             }
-            // 7. Binh Thanh Hub (Check cuối cùng)
+            // 1. Binh Thanh Hub -> 5009
+            // (Chỉ check Binh Thanh khi đã loại trừ VTB và Phuong 12 ở trên)
             else if (name.includes("binh thanh")) {
-                playSound("sound_142");
+                playSound("sound_5009");
             }
-            // Không khớp cái nào
+            
+            // Mặc định
             else {
                 playSound("sound_success");
             }
@@ -202,24 +209,15 @@
 
         function playSound(elementId) {
             try {
-                // Dừng các âm thanh đang chạy
                 document.querySelectorAll('audio').forEach(el => { el.pause(); el.currentTime = 0; });
-                
                 const audio = document.getElementById(elementId);
                 
-                // Kiểm tra xem file âm thanh có tồn tại trong code HTML không
                 if (audio) {
-                    var playPromise = audio.play();
-                    
-                    if (playPromise !== undefined) {
-                        playPromise.catch(error => {
-                            // BẮT LỖI: Nếu file mp3 không tồn tại trong thư mục
-                            console.log("Lỗi play file: " + elementId);
-                            alert("LỖI: Không tìm thấy file nhạc cho ID: " + elementId + "\nVui lòng kiểm tra lại thư mục chứa file.");
-                        });
-                    }
+                    audio.play().catch(e => {
+                        console.log("Lỗi play file: " + elementId, e);
+                    });
                 } else {
-                    console.log("Không tìm thấy thẻ audio có ID:", elementId);
+                    console.log("Không tìm thấy ID audio:", elementId);
                     document.getElementById("sound_success").play();
                 }
             } catch (e) { console.log("Lỗi hệ thống âm thanh:", e); }
