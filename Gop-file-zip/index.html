@@ -28,11 +28,10 @@
 
         .container {
             background: #ffffff;
-            width: 1300%;
-            /* --- THAY ĐỔI 1: KÉO DÀI GIAO DIỆN RA 1200px --- */
+            width: 100%;
             max-width: 1300px; 
             border-radius: 16px;
-            box-shadow: 0 100px 40000px rgba(0,0,0,0.1); /* Bóng đổ sâu hơn cho nổi */
+            box-shadow: 0 100px 400px rgba(0,0,0,0.1); /* Giảm blur một chút cho đỡ nặng máy */
             overflow: hidden;
             display: flex;
             flex-direction: column;
@@ -50,7 +49,6 @@
             overflow: hidden;
         }
 
-        /* Hiệu ứng ánh sáng chạy qua header (trang trí thêm) */
         .shopee-header::after {
             content: '';
             position: absolute;
@@ -83,26 +81,24 @@
             z-index: 1;
         }
 
-        /* --- THAY ĐỔI 2: CHỮ S CHUYỂN ĐỘNG (ANIMATION) --- */
         .logo-text {
             color: var(--shopee-orange-end);
             font-weight: 1000;
             font-size: 50px;
             font-family: sans-serif;
             display: inline-block;
-            animation: bounce-logo 2s infinite ease-in-out; /* Hiệu ứng nhịp đập */
+            animation: bounce-logo 2s infinite ease-in-out;
         }
 
-        /* Định nghĩa chuyển động cho chữ S */
         @keyframes bounce-logo {
             0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.2) rotate(5deg); } /* Phóng to và xoay nhẹ */
+            50% { transform: scale(1.2) rotate(5deg); }
         }
 
         .header-info { display: flex; flex-direction: column; z-index: 1; }
         
         .header-title { 
-            font-size: 32px; /* Chữ to hơn nữa */
+            font-size: 32px; 
             font-weight: 800; 
             margin-bottom: 10px; 
             text-transform: uppercase; 
@@ -132,7 +128,7 @@
         .upload-area:hover { 
             border-color: var(--shopee-orange-start); 
             background-color: #fffbfb;
-            transform: translateY(-5px); /* Nổi lên khi di chuột vào */
+            transform: translateY(-5px); 
             box-shadow: 0 10px 25px rgba(0,0,0,0.05);
         }
         
@@ -177,7 +173,7 @@
         }
 
         .btn {
-            padding: 18px 50px; /* Nút siêu to */
+            padding: 18px 50px; 
             border-radius: 8px;
             font-size: 18px;
             font-weight: 800;
@@ -269,6 +265,8 @@
     <script>
         let selectedFiles = [];
         let finalWorkbook = null;
+        // Khởi tạo âm thanh lỗi
+        const errorAudio = new Audio('error.mp3'); 
 
         const dropZone = document.getElementById('dropZone');
         const fileInput = document.getElementById('fileInput');
@@ -277,6 +275,13 @@
         const exportBtn = document.getElementById('exportBtn');
         const spinner = document.getElementById('spinner');
         const statusMsg = document.getElementById('statusMsg');
+
+        // Hàm phát âm thanh khi có lỗi
+        function playErrorSound() {
+            // Reset thời gian về 0 để có thể phát liên tục nếu bấm nhiều lần
+            errorAudio.currentTime = 0;
+            errorAudio.play().catch(e => console.log("Không thể phát âm thanh: " + e));
+        }
 
         // Drag & Drop
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(e => dropZone.addEventListener(e, preventDefaults, false));
@@ -329,7 +334,9 @@
 
         // Run
         async function processMerge() {
+            // KIỂM TRA LỖI 1: CHƯA CHỌN FILE
             if (selectedFiles.length === 0) {
+                playErrorSound(); // Phát âm thanh lỗi
                 alert("Vui lòng chọn file Excel trước sếp ơi!");
                 return;
             }
@@ -347,7 +354,9 @@
 
                 results.forEach(data => { allData = allData.concat(data); });
 
+                // KIỂM TRA LỖI 2: FILE RỖNG
                 if (allData.length === 0) {
+                    playErrorSound(); // Phát âm thanh lỗi
                     statusMsg.innerHTML = '<span class="text-error">⚠️ Các file đã chọn không có dữ liệu!</span>';
                     processBtn.disabled = false;
                     processBtn.querySelector('span').innerText = "RUN DATA";
@@ -364,6 +373,7 @@
                 
             } catch (error) {
                 console.error(error);
+                playErrorSound(); // Phát âm thanh lỗi
                 statusMsg.innerHTML = '<span class="text-error">❌ Lỗi: File không đúng định dạng Excel!</span>';
             } finally {
                 processBtn.disabled = false;
@@ -375,6 +385,7 @@
         // Export
         function exportFile() {
             if (!finalWorkbook) {
+                playErrorSound();
                 alert("Chưa có dữ liệu!");
                 return;
             }
