@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Org Chart Manager V3 - Multi Files</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+
+    <style>
+        :root {
+            --bg-color: #f8fafc;
+            --line-color: #94a3b8;
+            --primary: #2563eb;
+        }
+
+        body { margin: 0; font-family: 'Segoe UI', sans-serif; height: 100vh; display: flex; overflow: hidden; background: var(--bg-color); }
+        * { box-sizing: border-box; }
+
+        /* --- SIDEBAR --- */
+        .sidebar {
+            width: 350px; background: white; border-right: 1px solid #e2e8f0;
+            display: flex; flex-direction: column; z-index: 100; box-shadow: 4px 0 15px rgba(0,0,0,0.05);
+        }
+        
+        /* HEADER FILE MANAGER */
+        .file-manager {
+            background: #1e293b; color: white; padding: 15px;
+            border-bottom: 1px solid #334155;
+        }
+        .app-title { font-size: 14px; font-weight: bold; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;}
+        
+        .file-controls { display: flex; gap: 5px; margin-bottom: 10px; }
+        .btn-file {
+            flex: 1; padding: 6px; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: 600;
+            display: flex; align-items: center; justify-content: center; gap: 5px;
+        }
+        .btn-new { background: #3b82f6; color: white; }
+        .btn-new:hover { background: #2563eb; }
+
+        /* FILE LIST */
+        .file-list {
+            background: #0f172a; padding: 5px; border-radius: 6px;
+            max-height: 120px; overflow-y: auto; display: flex; flex-direction: column; gap: 3px;
+        }
+        .file-item {
+            padding: 8px 10px; font-size: 12px; color: #cbd5e1; cursor: pointer;
+            border-radius: 4px; display: flex; justify-content: space-between; align-items: center;
+            transition: 0.2s; border: 1px solid transparent;
+        }
+        .file-item:hover { background: #334155; }
+        .file-item.active { background: #1e40af; color: white; border-color: #60a5fa; font-weight: bold; }
+        .file-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .btn-del-file { background: none; border: none; color: #ef4444; cursor: pointer; opacity: 0; padding: 2px 5px;}
+        .file-item:hover .btn-del-file { opacity: 1; }
+
+        /* CONTENT SIDEBAR */
+        .sidebar-content { padding: 15px; flex: 1; overflow-y: auto; background: #f8fafc; }
+
+        /* PANELS */
+        .panel { background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #e2e8f0; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+        .panel h3 { margin: 0 0 10px 0; font-size: 11px; color: #64748b; text-transform: uppercase; border-bottom: 1px dashed #e2e8f0; padding-bottom: 5px; }
+
+        label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; color: #334155; }
+        input[type="text"] { 
+            width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px; 
+            outline: none; font-size: 13px; margin-bottom: 10px;
+        }
+        
+        .color-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+        input[type="color"] { border: none; width: 40px; height: 40px; cursor: pointer; background: none; padding: 0; }
+
+        /* BUTTONS UI */
+        .btn { width: 100%; padding: 10px; border: none; border-radius: 6px; cursor: pointer; color: white; font-weight: 600; margin-top: 5px; display: flex; align-items: center; justify-content: center; gap: 5px;}
+        .btn-blue { background: #2563eb; }
+        .btn-red { background: #ef4444; }
+        .btn-green { background: #10b981; }
+
+        /* DIRECTION CONTROLS */
+        .dir-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; margin-top: 10px; }
+        .btn-dir {
+            padding: 8px; border: 1px solid #e2e8f0; background: #fff; border-radius: 4px; cursor: pointer;
+            color: #475569; font-size: 11px; display: flex; flex-direction: column; align-items: center; gap: 2px;
+        }
+        .btn-dir:hover { background: #eff6ff; color: #2563eb; border-color: #2563eb; }
+
+        /* --- CHART AREA --- */
+        .main-area { flex: 1; overflow: hidden; position: relative; cursor: grab; background-image: radial-gradient(#cbd5e1 1px, transparent 1px); background-size: 20px 20px; }
+        
+        .chart-container {
+            position: absolute; top: 50%; left: 50%; transform-origin: 0 0;
+            transition: transform 0.1s linear;
+        }
+
+        /* --- TREE CSS --- */
+        .tree { display: flex; justify-content: center; }
+        .tree ul { padding-top: 20px; position: relative; display: flex; justify-content: center; }
+        .tree li {
+            text-align: center; list-style-type: none; position: relative; padding: 20px 10px 0 10px;
+            display: flex; flex-direction: column; align-items: center;
+        }
+        /* Lines */
+        .tree li::before, .tree li::after {
+            content: ''; position: absolute; top: 0; right: 50%; border-top: 2px solid var(--line-color); width: 50%; height: 20px;
+        }
+        .tree li::after { right: auto; left: 50%; border-left: 2px solid var(--line-color); }
+        .tree li:only-child::after, .tree li:only-child::before { display: none; }
+        .tree li:only-child { padding-top: 0; }
+        .tree li:first-child::before, .tree li:last-child::after { border: 0 none; }
+        .tree li:last-child::before { border-right: 2px solid var(--line-color); border-radius: 0 5px 0 0; }
+        .tree li:first-child::after { border-radius: 5px 0 0 0; }
+        .tree ul ul::before { content: ''; position: absolute; top: 0; left: 50%; border-left: 2px solid var(--line-color); width: 0; height: 20px; }
+
+        /* CARD STYLE */
+        .node-card {
+            background: white; border: 2px solid #ccc; border-left-width: 5px; border-radius: 8px; width: 170px; padding: 12px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05); cursor: pointer; position: relative; z-index: 10; transition: all 0.2s;
+        }
+        .node-card:hover { transform: translateY(-3px); box-shadow: 0 8px 15px rgba(0,0,0,0.1); }
+        .node-card.selected { background-color: #fff; box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.3); transform: scale(1.02); }
+        .role { font-size: 10px; font-weight: 700; text-transform: uppercase; margin-bottom: 3px; }
+        .name { font-size: 14px; font-weight: 600; color: #1e293b; margin-top: 2px; }
+
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <div class="file-manager">
+            <div class="app-title">
+                <span><i class="fas fa-folder-open"></i> QUẢN LÝ SƠ ĐỒ</span>
+                <span style="font-size:10px; opacity:0.7;">V3.0</span>
+            </div>
+            
+            <div class="file-controls">
+                <button class="btn-file btn-new" onclick="createNewChart()">
+                    <i class="fas fa-plus"></i> Tạo Mới
+                </button>
+            </div>
+
+            <div class="file-list" id="fileList">
+                </div>
+        </div>
+
+        <div class="sidebar-content">
+            
+            <div class="panel">
+                <label>Tên Sơ Đồ Hiện Tại:</label>
+                <input type="text" id="chartNameInput" placeholder="Ví dụ: Team Sale T1..." oninput="updateChartName()">
+            </div>
+
+            <div id="controls" style="display:none;">
+                <div class="panel">
+                    <h3>Thông tin nhân sự</h3>
+                    <label>Họ và Tên</label>
+                    <input type="text" id="inputName">
+                    <label>Chức danh</label>
+                    <input type="text" id="inputRole">
+                    <label>Màu Team</label>
+                    <div class="color-row">
+                        <input type="color" id="inputColor" value="#2563eb">
+                        <span style="font-size:11px; color:#666;">Chọn màu</span>
+                    </div>
+                    <button class="btn btn-blue" onclick="saveNodeInfo()"><i class="fas fa-sync"></i> Cập Nhật</button>
+                </div>
+
+                <div class="panel">
+                    <h3>Thêm vị trí</h3>
+                    <div class="dir-grid">
+                        <button class="btn-dir" style="grid-column: 2;" onclick="addNode('up')"><i class="fas fa-arrow-up"></i> Sếp</button>
+                        <button class="btn-dir" style="grid-column: 1; grid-row: 2;" onclick="addNode('left')"><i class="fas fa-arrow-left"></i> Trái</button>
+                        <button class="btn-dir" style="grid-column: 2; grid-row: 2;" onclick="addNode('down')"><i class="fas fa-arrow-down"></i> Dưới</button>
+                        <button class="btn-dir" style="grid-column: 3; grid-row: 2;" onclick="addNode('right')"><i class="fas fa-arrow-right"></i> Phải</button>
+                    </div>
+                </div>
+
+                <button class="btn btn-red" onclick="deleteSelected()"><i class="fas fa-trash"></i> Xóa ô này</button>
+                <br>
+                <button class="btn btn-green" onclick="exportImage()"><i class="fas fa-camera"></i> Xuất Ảnh PNG</button>
+            </div>
+            
+            <div id="welcomeMsg" style="text-align: center; color: #64748b; margin-top: 20px; font-size: 13px;">
+                <i class="fas fa-mouse-pointer"></i> Click vào 1 ô bên phải<br>để chỉnh sửa hoặc thêm người.
+            </div>
+        </div>
+    </div>
+
+    <div class="main-area" id="mainArea">
+        <div class="chart-container" id="chartContainer">
+            <div class="tree" id="treeRoot"></div>
+        </div>
+    </div>
+
+    <script>
+        // --- QUẢN LÝ DỮ LIỆU (MULTI FILES) ---
+        let charts = []; // Mảng chứa các sơ đồ: { id, name, data }
+        let currentChartId = null;
+        let rootData = null; // Dữ liệu của sơ đồ đang mở
+        
+        let selectedNodeId = null;
+        let scale = 1, panX = 0, panY = 0;
+
+        // Mẫu mặc định
+        const templateData = {
+            id: 1, name: "Giám Đốc", role: "CEO", color: "#2563eb", children: [
+                { id: 2, name: "Trưởng Phòng", role: "Manager", color: "#10b981", children: [] }
+            ]
+        };
+
+        // --- KHỞI TẠO ---
+        window.onload = () => {
+            loadChartsFromStorage();
+            centerChart();
+        };
+
+        // 1. Tải danh sách file
+        function loadChartsFromStorage() {
+            const stored = localStorage.getItem('orgCharts_V3');
+            if (stored) {
+                charts = JSON.parse(stored);
+            } else {
+                // Nếu chưa có gì, tạo 1 cái mặc định
+                charts = [{ id: Date.now(), name: "Sơ đồ đầu tiên", data: JSON.parse(JSON.stringify(templateData)) }];
+            }
+
+            // Mở file mới nhất hoặc file đầu tiên
+            if (charts.length > 0) {
+                openChart(charts[0].id);
+            }
+            renderFileList();
+        }
+
+        // 2. Lưu toàn bộ vào Storage
+        function saveAll() {
+            // Cập nhật data hiện tại vào mảng charts
+            const idx = charts.findIndex(c => c.id === currentChartId);
+            if (idx !== -1) {
+                charts[idx].data = rootData;
+                localStorage.setItem('orgCharts_V3', JSON.stringify(charts));
+            }
+        }
+
+        // 3. Hiển thị danh sách file bên trái
+        function renderFileList() {
+            const listEl = document.getElementById('fileList');
+            listEl.innerHTML = '';
+            
+            charts.forEach(c => {
+                const item = document.createElement('div');
+                item.className = `file-item ${c.id === currentChartId ? 'active' : ''}`;
+                item.onclick = () => openChart(c.id);
+                item.innerHTML = `
+                    <div class="file-name"><i class="fas fa-file-alt"></i> ${c.name}</div>
+                    <button class="btn-del-file" onclick="deleteChart(event, ${c.id})"><i class="fas fa-times"></i></button>
+                `;
+                listEl.appendChild(item);
+            });
+        }
+
+        // 4. Mở 1 sơ đồ
+        function openChart(id) {
+            const chart = charts.find(c => c.id === id);
+            if (chart) {
+                currentChartId = chart.id;
+                rootData = chart.data; // Load data vào biến chính
+                
+                // Update UI
+                document.getElementById('chartNameInput').value = chart.name;
+                selectedNodeId = null;
+                document.getElementById('controls').style.display = 'none';
+                document.getElementById('welcomeMsg').style.display = 'block';
+                
+                renderFileList();
+                renderChart();
+                centerChart();
+            }
+        }
+
+        // 5. Tạo sơ đồ mới
+        function createNewChart() {
+            const newId = Date.now();
+            const newChart = {
+                id: newId,
+                name: "Sơ đồ mới " + (charts.length + 1),
+                data: JSON.parse(JSON.stringify(templateData))
+            };
+            charts.unshift(newChart); // Thêm vào đầu danh sách
+            saveAll();
+            openChart(newId);
+        }
+
+        // 6. Xóa sơ đồ
+        function deleteChart(e, id) {
+            e.stopPropagation(); // Không kích hoạt sự kiện click mở file
+            if (confirm("Bạn có chắc muốn xóa sơ đồ này không?")) {
+                charts = charts.filter(c => c.id !== id);
+                if (charts.length === 0) {
+                    createNewChart(); // Nếu xóa hết thì tạo cái mới
+                } else {
+                    if (currentChartId === id) openChart(charts[0].id); // Nếu xóa cái đang mở thì mở cái khác
+                    else {
+                        saveAll();
+                        renderFileList();
+                    }
+                }
+            }
+        }
+
+        // 7. Đổi tên sơ đồ
+        function updateChartName() {
+            const newName = document.getElementById('chartNameInput').value;
+            const idx = charts.findIndex(c => c.id === currentChartId);
+            if (idx !== -1) {
+                charts[idx].name = newName;
+                saveAll();
+                renderFileList(); // Update lại list bên trên
+            }
+        }
+
+        // --- RENDER SƠ ĐỒ (LOGIC CŨ VẪN GIỮ NGUYÊN) ---
+        function renderChart() {
+            if (!rootData) return;
+            document.getElementById('treeRoot').innerHTML = `<ul>${buildTree(rootData)}</ul>`;
+        }
+
+        function buildTree(node) {
+            const isSelected = node.id === selectedNodeId ? 'selected' : '';
+            const nodeColor = node.color || "#2563eb"; 
+            
+            let html = `
+                <li>
+                    <div class="node-card ${isSelected}" 
+                         style="border-color: ${nodeColor};" 
+                         onclick="selectNode(event, ${node.id})">
+                        <div class="role" style="color: ${nodeColor}">${node.role}</div>
+                        <div class="name">${node.name}</div>
+                    </div>`;
+            
+            if (node.children && node.children.length > 0) {
+                html += '<ul>';
+                node.children.forEach(child => html += buildTree(child));
+                html += '</ul>';
+            }
+            html += '</li>';
+            return html;
+        }
+
+        // --- CÁC HÀM THAO TÁC DATA (CÓ AUTO SAVE) ---
+        function selectNode(e, id) {
+            e.stopPropagation();
+            selectedNodeId = id;
+            const node = findNode(rootData, id);
+            document.getElementById('inputName').value = node.name;
+            document.getElementById('inputRole').value = node.role;
+            document.getElementById('inputColor').value = node.color || "#2563eb";
+            
+            document.getElementById('controls').style.display = 'block';
+            document.getElementById('welcomeMsg').style.display = 'none';
+            renderChart();
+        }
+
+        function saveNodeInfo() {
+            if (!selectedNodeId) return;
+            const node = findNode(rootData, selectedNodeId);
+            node.name = document.getElementById('inputName').value;
+            node.role = document.getElementById('inputRole').value;
+            node.color = document.getElementById('inputColor').value;
+            renderChart();
+            saveAll(); // <--- LƯU NGAY
+        }
+
+        function addNode(dir) {
+            if (!selectedNodeId) return;
+            const newNode = { id: Date.now(), name: "Mới", role: "Staff", color: "#64748b", children: [] };
+            
+            if (dir === 'down') {
+                const n = findNode(rootData, selectedNodeId);
+                if(!n.children) n.children = [];
+                n.children.push(newNode);
+            } else if (dir === 'up') {
+                if (rootData.id === selectedNodeId) {
+                    const old = JSON.parse(JSON.stringify(rootData));
+                    newNode.children = [old]; newNode.name = "Sếp Mới"; newNode.role="Boss"; newNode.color="#ef4444";
+                    rootData = newNode;
+                } else {
+                    const p = findParent(rootData, selectedNodeId);
+                    const idx = p.children.findIndex(c => c.id === selectedNodeId);
+                    newNode.children = [p.children[idx]];
+                    p.children[idx] = newNode;
+                }
+            } else { 
+                 if (rootData.id === selectedNodeId) return alert("Không thêm ngang Gốc");
+                 const p = findParent(rootData, selectedNodeId);
+                 const idx = p.children.findIndex(c => c.id === selectedNodeId);
+                 p.children.splice(dir === 'left' ? idx : idx+1, 0, newNode);
+            }
+            renderChart();
+            saveAll(); // <--- LƯU NGAY
+        }
+
+        function deleteSelected() {
+            if (selectedNodeId === rootData.id) return alert("Không xóa Gốc");
+            if(confirm("Xóa ô này?")) {
+                const p = findParent(rootData, selectedNodeId);
+                p.children = p.children.filter(c => c.id !== selectedNodeId);
+                selectedNodeId = null;
+                document.getElementById('controls').style.display = 'none';
+                renderChart();
+                saveAll(); // <--- LƯU NGAY
+            }
+        }
+
+        // HELPERS & ZOOM
+        function findNode(n, id) {
+            if(n.id===id) return n;
+            if(n.children) for(let c of n.children) { let r=findNode(c,id); if(r) return r; }
+            return null;
+        }
+        function findParent(n, id) {
+            if(!n.children) return null;
+            for(let c of n.children) { if(c.id===id) return n; let r=findParent(c,id); if(r) return r; }
+            return null;
+        }
+
+        const container = document.getElementById('chartContainer');
+        const main = document.getElementById('mainArea');
+        let drag=false, sx, sy;
+        main.addEventListener('mousedown', e=>{ if(!e.target.closest('.node-card')) { drag=true; sx=e.clientX-panX; sy=e.clientY-panY; } });
+        window.addEventListener('mouseup', ()=>drag=false);
+        window.addEventListener('mousemove', e=>{ if(drag) { e.preventDefault(); panX=e.clientX-sx; panY=e.clientY-sy; updateTransform(); } });
+        main.addEventListener('wheel', e=>{ e.preventDefault(); scale += e.deltaY * -0.001; scale = Math.min(Math.max(.125, scale), 4); updateTransform(); });
+
+        function updateTransform() { container.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`; }
+        function centerChart() {
+            const mainArea = document.getElementById('mainArea');
+            panX = (mainArea.clientWidth / 2) - 80; panY = 50; updateTransform();
+        }
+
+        function exportImage() {
+            const t = container.style.transform; container.style.transform='none'; container.style.padding="50px";
+            html2canvas(document.getElementById('treeRoot')).then(c=>{
+                const a=document.createElement('a'); a.download='org-chart.png'; a.href=c.toDataURL(); a.click();
+                container.style.transform=t; container.style.padding="0";
+            });
+        }
+    </script>
+</body>
+</html>
