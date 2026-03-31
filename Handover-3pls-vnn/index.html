@@ -2,6 +2,7 @@
 <html>
 <head>
     <title>Quản lý Đơn hàng</title>
+    <link rel="icon" href="icon.png">
     <style>
         /* ... (Phần CSS được giữ nguyên) ... */
         body {
@@ -204,7 +205,7 @@
         }
 
         .config-section input[type="text"] {
-            width: 100%;
+            width: 110%;
             max-width: none;
         }
 
@@ -212,7 +213,7 @@
         .header-box {
             background: linear-gradient(200deg, #fb7a1f 0%, #fa6e23 100%);
             border-radius: 18px;
-            padding: 35px 20px;
+            padding: 40px 20px;
             width: 96%;
             margin: 4px auto 6px auto;
             box-shadow: 0 6px 12px rgba(0,0,0,0.15);
@@ -246,6 +247,11 @@
             transform-origin: center;
             transition: transform 180ms ease, box-shadow 180ms ease;
             animation: shopeeIconFloat 2.8s ease-in-out infinite;
+        }
+
+        .shopee-icon-small:hover {
+            transform: translateY(-2px) scale(1.05);
+            box-shadow: 0 8px 18px rgba(0,0,0,0.15);
         }
 
         @keyframes shopeeIconFloat {
@@ -283,7 +289,6 @@
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
     <audio id="errorSound" src="error.mp3" preload="auto"></audio>
-    <audio id="successSound" src="success.mp3" preload="auto"></audio>
     <audio id="daoSound" src="dao.wav" preload="auto"></audio>
     <audio id="errorSound" src="error.mp3" preload="auto"></audio>
     <audio id="trungSound" src="trung.wav" preload="auto"></audio>
